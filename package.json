@@ -1,0 +1,67 @@
+{
+  "name": "dsh-quick-model-selector",
+  "version": "0.1.0",
+  "description": "DSH Quick Model Selector：搜索优先、provider 折叠、收藏与最近使用、键盘快选，接管输入框的模型座位。",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./dist/client.js",
+    "./logic": "./src/logic.js",
+    "./locale/*": "./locale/*",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "dist",
+    "scripts",
+    "locale",
+    "docs",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "test": "node --test test/*.test.js",
+    "install:dsh": "npm run build && node scripts/install-local.mjs",
+    "remove:dsh": "node scripts/install-local.mjs --remove"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SnailMann/dsh-quick-model-selector.git"
+  },
+  "homepage": "https://github.com/SnailMann/dsh-quick-model-selector#readme",
+  "bugs": {
+    "url": "https://github.com/SnailMann/dsh-quick-model-selector/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "model-selector",
+    "reasoning-effort"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}

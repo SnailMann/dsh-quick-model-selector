@@ -1,0 +1,4 @@
+- insert:
+    - id: quick-model-selector
+      name: dsh-quick-model-selector
+      config: {}
