@@ -182,6 +182,14 @@ test('the built bundle carries no ES module syntax', async () => {
   assert.ok(!/^\s*import\s/m.test(source))
 })
 
+test('the built bundle matches the current source files', async () => {
+  const logic = (await readFile(new URL('../src/logic.js', import.meta.url), 'utf8'))
+    .replace(/^export\s+/gm, '').trimEnd()
+  const template = await readFile(new URL('../src/client.template.js', import.meta.url), 'utf8')
+  const built = await readFile(bundleUrl, 'utf8')
+  assert.equal(built === template.replace('// __LOGIC_BUNDLE__', logic), true, 'run npm run build after editing sources')
+})
+
 test('the stylesheet never puts `inherit` inside the font shorthand', async () => {
   const source = await readFile(bundleUrl, 'utf8')
   // `font: 13px/18px inherit` is invalid — `inherit` is a CSS-wide keyword, not

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "快捷模型选择器",
-    "description": "接管输入框的模型座位：搜索优先、收藏与最近使用置顶、provider 分组折叠、键盘快选，推理强度是独立的第二个控件。"
+    "title": "dsh-quick-model-selector",
+    "description": "模型再多也好找：输入几个字就能搜，收藏和最近使用置顶，服务商分组可折叠；方向键加 Enter 快速切换，推理强度单独调。"
   }
 }

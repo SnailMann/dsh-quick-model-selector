@@ -608,6 +608,9 @@ function withCollapsed(prefs, groupId, collapsed) {
       const menuRef = useRef(null)
       const inputRef = useRef(null)
       const bodyRef = useRef(null)
+      // Folding removes the highlighted row from navigation. Keep its group
+      // and key until the user moves, so the next Tab can unfold it again.
+      const tabTargetRef = useRef(null)
 
       const view = useMemo(() => buildView(state, prefs, query), [state, prefs, query])
       const rows = view.rows
@@ -747,6 +750,7 @@ function withCollapsed(prefs, groupId, collapsed) {
 
       const toggleFavorite = useCallback(row => {
         if (row === undefined || row === null) return
+        tabTargetRef.current = null
         setPrefs(currentPrefs => {
           const next = withFavorite(currentPrefs, row.key)
           writePrefs(next)
@@ -780,6 +784,17 @@ function withCollapsed(prefs, groupId, collapsed) {
       }, [select, state.current, directory, close])
 
       const onKeyDown = useCallback(event => {
+        if (open === null || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+        // Buttons (triggers, group heads, stars and effort rows) keep their
+        // native Enter/Space behavior. List navigation belongs to the search
+        // field or the effort menu's own focus target.
+        if (event.target !== inputRef.current && event.target !== menuRef.current) {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            close(open)
+          }
+          return
+        }
         if (open === 'effort') {
           const count = effortChoices === null ? 0 : effortChoices.length
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -803,6 +818,7 @@ function withCollapsed(prefs, groupId, collapsed) {
 
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
+          tabTargetRef.current = null
           setActive(at => stepIndex(at, rows.length, event.key === 'ArrowDown' ? 1 : -1))
           return
         }
@@ -815,18 +831,28 @@ function withCollapsed(prefs, groupId, collapsed) {
           event.preventDefault()
           if (query !== '') {
             setQuery('')
+            tabTargetRef.current = null
             setActive(0)
             return
           }
           close('models')
           return
         }
-        if (event.key === 'Tab') {
+        if (event.key === 'Tab' && !view.searching && !event.shiftKey) {
           const row = rows[active]
-          if (row === undefined) return
-          const section = view.sections.find(candidate => candidate.kind === 'group' && candidate.id === row.provider)
+          const provider = tabTargetRef.current?.provider ?? row?.provider
+          const section = view.sections.find(candidate => candidate.kind === 'group'
+            && (provider === undefined || candidate.id === provider))
           if (section === undefined) return
           event.preventDefault()
+          if (tabTargetRef.current === null) {
+            tabTargetRef.current = { provider: section.id, key: row?.key ?? section.rows[0]?.key }
+          }
+          if (section.collapsed) {
+            const expanded = buildView(state, withCollapsed(prefs, section.id, false), query)
+            const restored = expanded.rows.findIndex(candidate => candidate.key === tabTargetRef.current.key)
+            setActive(restored < 0 ? 0 : restored)
+          }
           toggleGroup(section.id, section.collapsed)
           return
         }
@@ -841,7 +867,7 @@ function withCollapsed(prefs, groupId, collapsed) {
           event.preventDefault()
           toggleFavorite(rows[active])
         }
-      }, [open, effortChoices, effortActive, chooseEffort, close, rows, active, pick, query, view.sections, toggleGroup, toggleFavorite])
+      }, [open, effortChoices, effortActive, chooseEffort, close, rows, active, pick, query, view.sections, view.searching, state, prefs, toggleGroup, toggleFavorite])
 
       if (!available) return null
 
@@ -864,7 +890,10 @@ function withCollapsed(prefs, groupId, collapsed) {
           active: index === active,
           disabled: busy,
           onPick: () => pick(row),
-          onHover: () => setActive(index),
+          onHover: () => {
+            tabTargetRef.current = null
+            setActive(index)
+          },
           onStar: () => toggleFavorite(row),
         })
       }
@@ -875,7 +904,10 @@ function withCollapsed(prefs, groupId, collapsed) {
           key: `head-${section.id}`,
           type: foldable ? 'button' : undefined,
           className: `qms-head${foldable ? '' : ' static'}`,
-          onClick: foldable ? () => toggleGroup(section.id, section.collapsed) : undefined,
+          onClick: foldable ? () => {
+            tabTargetRef.current = null
+            toggleGroup(section.id, section.collapsed)
+          } : undefined,
           'aria-expanded': foldable ? !section.collapsed : undefined,
           title: foldable ? (section.collapsed ? t('unfold') : t('fold')) : undefined,
         },
@@ -898,6 +930,7 @@ function withCollapsed(prefs, groupId, collapsed) {
             autoComplete: 'off',
             onChange: event => {
               setQuery(event.currentTarget.value)
+              tabTargetRef.current = null
               setActive(0)
             },
           }),
@@ -989,6 +1022,7 @@ function withCollapsed(prefs, groupId, collapsed) {
             }
             openSurface('models')
             setQuery('')
+            tabTargetRef.current = null
             setActive(0)
             setFailure(null)
             load()

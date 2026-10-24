@@ -1,7 +1,7 @@
 {
   "name": "dsh-quick-model-selector",
   "version": "0.1.0",
-  "description": "DSH Quick Model Selector：搜索优先、provider 折叠、收藏与最近使用、键盘快选，接管输入框的模型座位。",
+  "description": "模型再多也好找：输入几个字就能搜，收藏和最近使用置顶，服务商分组可折叠；方向键加 Enter 快速切换，推理强度单独调。",
   "type": "module",
   "main": "./src/index.js",
   "exports": {

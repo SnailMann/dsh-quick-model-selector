@@ -42,7 +42,7 @@
 https://github.com/SnailMann/dsh-quick-model-selector
 ```
 
-装完按提示重启一次 DSH Desktop。重启后在「已安装插件」里能看到「快捷模型选择器」，可随时开关或卸载。
+装完按提示重启一次 DSH Desktop。重启后在「已安装插件」里能看到 `dsh-quick-model-selector`，可随时开关或卸载。
 
 **命令行**（等价，`web` 是 Desktop 用的 profile 名）：
 
@@ -74,7 +74,7 @@ dsh plugin --profile web add .
 | ↑ / ↓ | 移动高亮（焦点留在搜索框） |
 | Enter | 选中当前高亮 |
 | Esc | 先清空搜索词，再按一次关闭；在强度弹层里直接关闭 |
-| Tab | 折叠 / 展开当前高亮所在的 provider 组 |
+| Tab | 无搜索词时折叠 / 展开当前分组；连续按可恢复刚折叠的组（Shift+Tab 返回前一个控件） |
 | ⌘1 – ⌘9（或 Ctrl+1–9） | 直选第 N 个可见项 |
 | ⌘D（或 Ctrl+D） | 收藏 / 取消收藏当前高亮 |
 
@@ -93,6 +93,8 @@ dsh plugin --profile web remove dsh-quick-model-selector
 ## 开发
 
 改 `src/` 后 `npm run build` 再 `npm test`；`node scripts/preview.mjs <dir>` 可把真实组件渲染成静态页看排版。
+
+键盘交互测试使用本机 DSH profile 的 React 和 Playwright。通过 `NODE_PATH` 提供 Playwright 后运行 `npm test`；使用系统 Chrome 时加上 `QMS_BROWSER_CHANNEL=chrome`。缺少依赖时会明确跳过浏览器测试，不能替代真实 DSH 验证。
 
 ## License
 

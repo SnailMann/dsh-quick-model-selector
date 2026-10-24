@@ -38,7 +38,7 @@ Same layout in dark theme:
 https://github.com/SnailMann/dsh-quick-model-selector
 ```
 
-Then restart DSH Desktop once as prompted. The plugin appears as "快捷模型选择器" / "Quick Model Selector" under installed plugins and can be toggled or removed at any time.
+Then restart DSH Desktop once as prompted. The plugin appears as `dsh-quick-model-selector` under installed plugins and can be toggled or removed at any time.
 
 **Command line** — same thing, where `web` is the profile DSH Desktop uses:
 
@@ -70,7 +70,7 @@ Click the model button at the bottom right of the composer; the rest is in this 
 | ↑ / ↓ | Move the highlight (focus stays in the search box) |
 | Enter | Select the highlighted row |
 | Esc | Clears the search term first, closes on the second press; closes directly inside the effort popover |
-| Tab | Fold / unfold the provider group of the highlighted row |
+| Tab | With no search query, fold / unfold the current group; press again to restore it (Shift+Tab moves to the previous control) |
 | ⌘1 – ⌘9 (or Ctrl+1–9) | Pick the Nth visible row |
 | ⌘D (or Ctrl+D) | Favorite / unfavorite the highlighted row |
 
@@ -89,6 +89,8 @@ Only its own registration is removed — sessions, model config and preferences 
 ## Development
 
 After editing `src/`, run `npm run build` then `npm test`; `node scripts/preview.mjs <dir>` renders the real components into static pages for layout work.
+
+Keyboard interaction tests use React from the local DSH profile and Playwright. Provide Playwright through `NODE_PATH` before running `npm test`; set `QMS_BROWSER_CHANNEL=chrome` to use system Chrome. Missing dependencies explicitly skip browser checks; these checks do not replace verification in DSH.
 
 ## License
 

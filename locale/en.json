@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Quick Model Selector",
-    "description": "Search-first model picker for the composer: favorites, recents, collapsible provider groups, keyboard shortcuts, and a separate reasoning-effort control."
+    "title": "dsh-quick-model-selector",
+    "description": "Find your next model in a few keystrokes. Keep favorites and recent picks on top, fold provider groups, switch with arrows and Enter, and tune reasoning effort separately."
   }
 }
