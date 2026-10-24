@@ -50,8 +50,8 @@ try {
   assert.equal(row.meta.description.zh, zh.meta.description)
   assert.equal(row.meta.description.en, en.meta.description)
   assert.equal(meta.error, undefined)
-  assert.match(meta.icon ?? '', /^data:image\/svg\+xml;base64,/, 'the package exports its own icon')
-  assert.match(row.meta.icon ?? '', /^data:image\/svg\+xml;base64,/, 'the plugin list row renders the exported icon')
+  assert.match(meta.icon ?? '', /^data:image\/png;base64,/, 'the package exports its own icon')
+  assert.match(row.meta.icon ?? '', /^data:image\/png;base64,/, 'the plugin list row renders the exported icon')
 
   let profile = loadProfileDirectory('dsh', dir, anchor)
   let entries = composeEntries([...profile.layers.map(layer => layer.patches), profile.patches])

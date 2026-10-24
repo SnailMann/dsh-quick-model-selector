@@ -1,5 +1,9 @@
 # DSH Quick Model Selector
 
+<img src="icon.png" alt="SnailMann snail icon" width="80" height="80">
+
+Uses the shared orange-and-blue SnailMann DSH plugin icon, exported as `./icon` and included in the package.
+
 English · [中文](README.md)
 
 Takes over the model seat at the bottom right of the DSH composer: instead of one long flat list of every provider, you get a search-first panel with favorites and recents pinned on top, collapsed provider groups, and reasoning effort as a separate second control. Built for setups with dozens or hundreds of models.
@@ -14,7 +18,7 @@ Takes over the model seat at the bottom right of the DSH composer: instead of on
 - **Multiplier badges** — an `x0.28` token in the model name becomes a row-end badge, colored ≤0.3 green, ≤0.8 amber, >0.8 red.
 - **Separate reasoning effort** — its own button, popover and focus; hidden entirely when the current model has no reasoning support.
 - **Keyboard** — `⌘1–⌘9` quick pick, `⌘D` favorite, `Tab` fold, arrows plus Enter.
-- **Narrow rows keep the name** — the model name is never swapped for a glyph; it ellipsizes instead, and the effort control folds into the bottom of the menu.
+- **Narrow rows stay orderly** — the model button has a fixed 150px width with an ellipsis and its full name on hover. It shrinks further when necessary to leave room for the microphone and send button; reasoning effort moves into the model menu and returns beside it when space permits.
 
 ![Search](docs/images/search.png)
 
@@ -90,7 +94,7 @@ Only its own registration is removed — sessions, model config and preferences 
 
 After editing `src/`, run `npm run build` then `npm test`; `node scripts/preview.mjs <dir>` renders the real components into static pages for layout work.
 
-Keyboard interaction tests use React from the local DSH profile and Playwright. Provide Playwright through `NODE_PATH` before running `npm test`; set `QMS_BROWSER_CHANNEL=chrome` to use system Chrome. Missing dependencies explicitly skip browser checks; these checks do not replace verification in DSH.
+Browser interaction tests use React from the local DSH profile and Playwright. They cover keyboard input, toolbar widths from 320–800px, model-name truncation, changing peer labels, and menu boundaries. Provide Playwright through `NODE_PATH` before running `npm test`; set `QMS_BROWSER_CHANNEL=chrome` to use system Chrome. Missing dependencies explicitly skip browser checks; these checks do not replace verification in DSH. Static previews do not run layout observers; verify responsive behavior in the browser and the real host.
 
 ## License
 

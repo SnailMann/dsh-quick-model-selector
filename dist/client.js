@@ -8,9 +8,8 @@
  *
  * Two separate composer controls, each with its own hit area, popover and focus
  * target: the model picker (search + collapsed providers + favorites/recents)
- * and the reasoning-effort picker. When the row cannot hold both, the trigger
- * collapses to an icon per the host's compact contract and effort moves into the
- * model menu.
+ * and the reasoning-effort picker. The seat measures the space left by other
+ * controls, moves effort into the menu first, then truncates the model label.
  *
  * The panel keeps the stock data face (the shared per-session ModelDirectory),
  * so a pick here is the same host-reported selection the /model popup sees.
@@ -403,16 +402,20 @@ function withCollapsed(prefs, groupId, collapsed) {
 
     const css = `
 .qms-root{position:relative;display:flex;align-items:center;gap:2px;flex:0 0 auto;min-width:0}
-.qms-trigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:220px;height:28px;padding:0 4px 0 8px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.qms-trigger{display:flex;box-sizing:border-box;align-items:center;gap:4px;min-width:0;max-width:var(--qms-model-width,220px);height:28px;padding:0 4px 0 8px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.qms-root[data-qms-layout="compact"] .qms-trigger{width:var(--qms-model-width,150px)}
 .qms-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .qms-trigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
 .qms-trigger:disabled{color:var(--dsw-alias-label-dimmed,#a8adb5);cursor:default}
-.qms-trigger-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* 窄行里保留模型名（超出用省略号），只把宽度收紧一点；图标不再顶替文字。 */
-@container (width<=560px){.qms-trigger{max-width:150px}.qms-trigger-label{max-width:150px}}
+.qms-trigger-label{display:block;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+/* First-paint fallback; measured layouts use the actual remaining row space. */
+@container (width<=560px){.qms-root:not([data-qms-layout]) .qms-trigger{max-width:150px}}
 /* 推理强度是模型按钮旁边的独立控件：各自 hover、各自点击、各自开自己的弹层。
    控制行排不下一行时宿主会置 --dsh-composer-model-text-display:none，强度按钮收起，退回模型菜单底部。 */
 .qms-effort{display:var(--dsh-composer-model-text-display,block);flex:0 0 auto}
+.qms-root[data-qms-layout="expanded"] .qms-effort{display:block}
+/* Keep its natural width measurable while removing it from layout and focus. */
+.qms-root[data-qms-layout="compact"] .qms-effort{display:block;position:absolute;visibility:hidden;pointer-events:none;width:max-content}
 .qms-effort-btn{display:flex;align-items:center;gap:2px;height:28px;padding:0 4px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-caption,#8a8f98);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
 .qms-effort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .qms-effort-btn:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
@@ -453,6 +456,8 @@ function withCollapsed(prefs, groupId, collapsed) {
 .qms-check{display:grid;place-items:center;flex:0 0 13px;color:var(--dsw-alias-label-primary,#1f2328)}
 /* 窄到放不下那枚独立按钮时，推理强度退回模型菜单里，功能不丢。 */
 .qms-link-slot{display:var(--dsh-composer-model-icon-display,none)}
+.qms-root[data-qms-layout="expanded"] .qms-link-slot{display:none}
+.qms-root[data-qms-layout="compact"] .qms-link-slot{display:block}
 .qms-link{display:flex;flex:0 0 28px;align-items:center;gap:5px;width:100%;height:28px;margin-top:3px;padding:0 6px;border:none;border-top:1px solid var(--dsw-alias-border-l2,#eceef1);background:transparent;color:inherit;font-family:inherit;font-size:12px;font-weight:400;line-height:18px;cursor:pointer}
 .qms-link:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.04))}
 .qms-link:disabled{cursor:default;color:var(--dsw-alias-label-dimmed,#a8adb5)}
@@ -500,6 +505,62 @@ function withCollapsed(prefs, groupId, collapsed) {
         window.localStorage.setItem(PREFS_KEY, JSON.stringify(value))
       } catch {
         /* private mode: the panel still works, preferences just do not persist */
+      }
+    }
+
+    const composerRow = root => {
+      let row = root.parentElement
+      while (row !== null && !getComputedStyle(row).containerType.includes('inline-size')) row = row.parentElement
+      return row
+    }
+
+    /** Allocate only this seat's width; never change the host row or its peers. */
+    const observeSeatLayout = (root, publish) => {
+      const row = composerRow(root)
+      if (row === null || typeof ResizeObserver === 'undefined') return
+      let frame = null
+      const measure = () => {
+        frame = null
+        const style = getComputedStyle(row)
+        const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+        const widths = Array.from(row.children, child => child.getBoundingClientRect().width).filter(width => width > 0)
+        const gaps = Math.max(0, widths.length - 1) * (parseFloat(style.columnGap) || 0)
+        const occupied = widths.reduce((sum, width) => sum + width, 0) + gaps - root.getBoundingClientRect().width
+        const budget = Math.floor(row.clientWidth - padding - occupied - 2)
+        const trigger = root.querySelector('.qms-trigger')
+        const label = root.querySelector('.qms-trigger-label')
+        if (trigger === null || label === null || row.clientWidth === 0) return
+        const triggerStyle = getComputedStyle(trigger)
+        const range = document.createRange()
+        range.selectNodeContents(label)
+        const modelWidth = Math.min(220, Math.ceil(range.getBoundingClientRect().width
+          + (parseFloat(triggerStyle.paddingLeft) || 0) + (parseFloat(triggerStyle.paddingRight) || 0)
+          + (parseFloat(triggerStyle.columnGap) || 0) + (root.querySelector('.qms-chevron')?.getBoundingClientRect().width ?? 0)))
+        const effort = root.querySelector('.qms-effort')
+        const effortWidth = effort?.getBoundingClientRect().width ?? 0
+        const compact = row.clientWidth - padding <= 560
+          || budget < modelWidth + (effort === null ? 0 : effortWidth + 2)
+          || (effort !== null && effortWidth === 0)
+        // Preserve a short readable label. Beyond this floor, let the host
+        // wrap its groups rather than overlap the microphone or send action.
+        publish({ compact, modelWidth: compact ? Math.max(56, Math.min(150, budget)) : 220 })
+      }
+      const schedule = () => {
+        if (frame === null) frame = requestAnimationFrame(measure)
+      }
+      const resize = new ResizeObserver(schedule)
+      for (const element of new Set([row, root, ...row.children])) resize.observe(element)
+      const effort = root.querySelector('.qms-effort')
+      if (effort !== null) resize.observe(effort)
+      const mutation = new MutationObserver(schedule)
+      mutation.observe(row, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'style'] })
+      document.fonts?.addEventListener('loadingdone', schedule)
+      measure()
+      return () => {
+        if (frame !== null) cancelAnimationFrame(frame)
+        resize.disconnect()
+        mutation.disconnect()
+        document.fonts?.removeEventListener('loadingdone', schedule)
       }
     }
 
@@ -598,9 +659,8 @@ function withCollapsed(prefs, groupId, collapsed) {
       const [prefs, setPrefs] = useState(readPrefs)
       const [failure, setFailure] = useState(null)
       const [overflowing, setOverflowing] = useState(false)
-      // Space actually available above the trigger; the composer is not always
-      // docked at the bottom, so `100vh - 140px` is not a safe cap.
-      const [roomAbove, setRoomAbove] = useState(null)
+      const [menuLayout, setMenuLayout] = useState(null)
+      const [layout, setLayout] = useState(null)
 
       const rootRef = useRef(null)
       const triggerRef = useRef(null)
@@ -611,6 +671,13 @@ function withCollapsed(prefs, groupId, collapsed) {
       // Folding removes the highlighted row from navigation. Keep its group
       // and key until the user moves, so the next Tab can unfold it again.
       const tabTargetRef = useRef(null)
+
+      useEffect(() => {
+        if (!available || rootRef.current === null) return
+        return observeSeatLayout(rootRef.current, next => {
+          setLayout(previous => previous?.compact === next.compact && previous?.modelWidth === next.modelWidth ? previous : next)
+        })
+      }, [available])
 
       const view = useMemo(() => buildView(state, prefs, query), [state, prefs, query])
       const rows = view.rows
@@ -722,15 +789,59 @@ function withCollapsed(prefs, groupId, collapsed) {
         setQuery('')
         setFailure(null)
         if (surface === null || surface === undefined) return
-        queueMicrotask(() => (surface === 'effort' ? effortRef : triggerRef).current?.focus())
+        queueMicrotask(() => {
+          const effort = effortRef.current
+          const visible = effort !== null && effort.offsetParent !== null && getComputedStyle(effort).visibility !== 'hidden'
+          const target = surface === 'effort' && visible ? effort : triggerRef.current
+          target?.focus()
+        })
       }, [])
 
-      /** Open a surface, first measuring how much room the trigger has above it. */
-      const openSurface = useCallback(surface => {
+      /** Keep menus inside the viewport, flipping below when there is more room. */
+      const placeMenu = useCallback(surface => {
         const rect = rootRef.current?.getBoundingClientRect()
-        setRoomAbove(rect === undefined ? null : Math.max(180, Math.round(rect.top - 16)))
-        setOpen(surface)
+        if (rect === undefined) return null
+        const viewport = document.documentElement.clientWidth
+        const width = Math.min(surface === 'effort' ? 212 : 336, viewport - 32)
+        const above = Math.max(0, rect.top - 24)
+        const below = Math.max(0, window.innerHeight - rect.bottom - 24)
+        const upwards = above >= 180 || above >= below
+        return {
+          position: 'fixed',
+          width,
+          left: Math.max(16, Math.min(rect.right - width, viewport - width - 16)),
+          right: 'auto',
+          top: upwards ? 'auto' : rect.bottom + 8,
+          bottom: upwards ? window.innerHeight - rect.top + 8 : 'auto',
+          maxHeight: Math.min(surface === 'effort' ? 320 : 430, upwards ? above : below),
+        }
       }, [])
+
+      const openSurface = useCallback(surface => {
+        setMenuLayout(placeMenu(surface))
+        setOpen(surface)
+      }, [placeMenu])
+
+      useEffect(() => {
+        if (open === null || rootRef.current === null) return
+        const place = () => setMenuLayout(placeMenu(open))
+        const resize = new ResizeObserver(place)
+        resize.observe(rootRef.current)
+        const row = composerRow(rootRef.current)
+        if (row !== null) for (const element of [row, ...row.children]) resize.observe(element)
+        const moved = new MutationObserver(place)
+        for (let element = rootRef.current.parentElement; element !== null; element = element.parentElement) {
+          moved.observe(element, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] })
+        }
+        window.addEventListener('resize', place)
+        window.addEventListener('scroll', place, true)
+        return () => {
+          resize.disconnect()
+          moved.disconnect()
+          window.removeEventListener('resize', place)
+          window.removeEventListener('scroll', place, true)
+        }
+      }, [open, placeMenu])
 
       const pick = useCallback(row => {
         if (row === undefined || row === null) return
@@ -1003,7 +1114,13 @@ function withCollapsed(prefs, groupId, collapsed) {
 
         h('div', { className: 'qms-foot' }, t('keysEffort').map(text => h('span', { key: text }, text))))
 
-      return h('div', { ref: rootRef, className: 'qms-root', onKeyDown },
+      return h('div', {
+        ref: rootRef,
+        className: 'qms-root',
+        onKeyDown,
+        'data-qms-layout': layout === null ? undefined : layout.compact ? 'compact' : 'expanded',
+        style: layout === null ? undefined : { '--qms-model-width': `${layout.modelWidth}px` },
+      },
         h('button', {
           ref: triggerRef,
           type: 'button',
@@ -1062,7 +1179,7 @@ function withCollapsed(prefs, groupId, collapsed) {
           role: 'menu',
           tabIndex: -1,
           'aria-label': t('selectAria'),
-          style: roomAbove === null ? undefined : { maxHeight: Math.min(430, roomAbove) },
+          style: menuLayout ?? undefined,
         }, modelsPane),
 
         open === 'effort' && h('div', {
@@ -1071,7 +1188,7 @@ function withCollapsed(prefs, groupId, collapsed) {
           role: 'menu',
           tabIndex: -1,
           'aria-label': t('effort'),
-          style: roomAbove === null ? undefined : { maxHeight: Math.min(320, roomAbove) },
+          style: menuLayout ?? undefined,
         }, effortPopup))
     }
 

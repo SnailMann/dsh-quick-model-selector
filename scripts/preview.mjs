@@ -147,8 +147,8 @@ const variants = [
   { id: 'models', width: 700, note: '默认：折叠分组 + 收藏 / 最近使用', patch: openIt('models') },
   { id: 'search', width: 700, note: '搜索态', patch: text => openIt('models')(text).replace('useState(\'\')', 'useState(\'gl\')') },
   { id: 'effort', width: 700, note: '独立弹层：推理强度', patch: openIt('effort') },
-  // 宿主在控制行排不下一行时加 data-model-compact，触发器靠 CSS 变量换成图标。
-  { id: 'compact', width: 560, compact: true, note: '窄宽度：文字换成模型图标（data-model-compact）', patch: text => text },
+  // 宿主在控制行排不下一行时加 data-model-compact，推理强度移入菜单。
+  { id: 'compact', width: 560, compact: true, note: '窄宽度：模型名保留，超长部分省略', patch: text => text },
   { id: 'compact-models', width: 560, compact: true, note: '窄宽度：强度收进模型菜单', patch: openIt('models') },
 ]
 
@@ -231,7 +231,7 @@ const row = ({ html, width, compact }) => `<div class="composer" style="width:${
 const ghostText = process.env.QMS_GHOST
   ?? '面板背后是真实的编辑器文字：半透明表面必须配 backdrop-filter，否则这段文字会透上来。'
 // Docs captures show only the UI: no caption line and no background editor text.
-const caption = docs ? '' : `<div class="cap">${variant.note}${dark ? ' · 深色' : ' · 浅色'}</div>`
+const caption = (variant, dark) => docs ? '' : `<div class="cap">${variant.note}${dark ? ' · 深色' : ' · 浅色'}</div>`
 const ghost = docs ? '' : `<div class="ghost">${ghostText}</div>`
 const page = (variant, { css, html }, dark) => `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>
@@ -255,7 +255,7 @@ body{background:${dark ? '#14171b' : '#f2f3f5'};color:${dark ? '#e6e8eb' : '#1f2
 .cap{margin:10px 2px 0;font-size:12px;color:${dark ? '#767b84' : '#8a8f98'}}
 ${css}
 </style></head>
-<body><div class="stage">${ghost}<div>${row({ html, width: variant.width ?? 640, compact: variant.compact })}${caption}</div></div>${MEASURE}</body></html>`
+<body><div class="stage">${ghost}<div>${row({ html, width: variant.width ?? 640, compact: variant.compact })}${caption(variant, dark)}</div></div>${MEASURE}</body></html>`
 
 await mkdir(outDir, { recursive: true })
 const written = []

@@ -2,6 +2,10 @@
 
 [English](README.en.md) · 中文
 
+<img src="icon.png" alt="SnailMann 蜗牛图标" width="80" height="80">
+
+使用 SnailMann DSH 插件统一的橙蓝蜗牛图标，通过 `./icon` 导出并随安装包分发。
+
 **模型越来越多，切换不该越来越麻烦。**
 
 接入了好几个 provider，模型列表越拉越长；明明只想换回刚才那个，却又得从头翻一遍。
@@ -18,7 +22,7 @@
 - **倍率不用藏在长名字里**：`x0.28` 这类倍率单独显示为彩色角标，扫一眼就能分辨。
 - **换模型、调推理，各管各的**：推理强度有独立按钮，不必在模型列表里来回找；不支持时自动隐藏。
 - **手不离键盘，也能切换**：方向键选、Enter 确认，`⌘1–⌘9` 快选、`⌘D` 收藏（也支持 Ctrl）。
-- **窗口变窄，也看得清是哪个模型**：模型名始终保留，过长用省略号收尾；推理强度按钮收起，挪进模型菜单底部。
+- **窗口变窄，按钮也不乱跑**：窄框下模型按钮固定为 150px，长名称用省略号收尾，悬停查看全名；实际空间不足时进一步收窄，推理强度移入模型菜单，给麦克风和发送按钮留出位置。窗口放宽后恢复独立的强度按钮。
 
 ![搜索](docs/images/search.png)
 
@@ -94,7 +98,7 @@ dsh plugin --profile web remove dsh-quick-model-selector
 
 改 `src/` 后 `npm run build` 再 `npm test`；`node scripts/preview.mjs <dir>` 可把真实组件渲染成静态页看排版。
 
-键盘交互测试使用本机 DSH profile 的 React 和 Playwright。通过 `NODE_PATH` 提供 Playwright 后运行 `npm test`；使用系统 Chrome 时加上 `QMS_BROWSER_CHANNEL=chrome`。缺少依赖时会明确跳过浏览器测试，不能替代真实 DSH 验证。
+浏览器交互测试使用本机 DSH profile 的 React 和 Playwright，覆盖键盘操作、320–800px 工具栏宽度、模型名省略、其他控件文字变化和弹层边界。通过 `NODE_PATH` 提供 Playwright 后运行 `npm test`；使用系统 Chrome 时加上 `QMS_BROWSER_CHANNEL=chrome`。缺少依赖时会明确跳过浏览器测试，不能替代真实 DSH 验证。静态预览不执行布局观察器，响应式行为以浏览器测试和真实宿主为准。
 
 ## License
 
