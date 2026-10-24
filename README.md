@@ -4,8 +4,6 @@
 
 <img src="icon.png" alt="SnailMann 蜗牛图标" width="80" height="80">
 
-使用 SnailMann DSH 插件统一的橙蓝蜗牛图标，通过 `./icon` 导出并随安装包分发。
-
 **模型越来越多，切换不该越来越麻烦。**
 
 接入了好几个 provider，模型列表越拉越长；明明只想换回刚才那个，却又得从头翻一遍。

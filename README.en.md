@@ -2,8 +2,6 @@
 
 <img src="icon.png" alt="SnailMann snail icon" width="80" height="80">
 
-Uses the shared orange-and-blue SnailMann DSH plugin icon, exported as `./icon` and included in the package.
-
 English · [中文](README.md)
 
 Takes over the model seat at the bottom right of the DSH composer: instead of one long flat list of every provider, you get a search-first panel with favorites and recents pinned on top, collapsed provider groups, and reasoning effort as a separate second control. Built for setups with dozens or hundreds of models.
