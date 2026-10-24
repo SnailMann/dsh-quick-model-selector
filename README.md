@@ -91,6 +91,15 @@ npm run install:dsh
 node scripts/install-local.mjs --dry-run
 ```
 
+### 已验证
+
+在 **DSH Desktop 0.12.1 / Harness 0.2.1-rc.2** 上跑过这几条：
+
+- **插件页 / 命令行装 Git 仓库**：`dsh plugin --profile web add github:SnailMann/dsh-quick-model-selector` 后，profile 的 `dependencies` 记成 `github:SnailMann/dsh-quick-model-selector`，`dsh.profile.bundles` 自动追加本包；`dsh --profile web --dump-config` 里能看到 `# == dsh-quick-model-selector` 层；`dsh plugin --profile web remove dsh-quick-model-selector` 把依赖和层一起撤掉。
+- **已安装插件列表**：真实 profile 里 `installed` 与 `enabled` 均为 `true`，标题显示「快捷模型选择器」，图标取自包内 `icon.svg`；启用时组合出 1 条插件行，停用后 0 条（`test/host-registration.mjs` 断言）。
+- **两半都真激活**：host 半在真实 cordis `Context` 上 `apply` 成功，客户端 bundle 走 `__ModuleLoader__` 注册，`conversation.input.model` 座位被接管（priority -20）。
+- **安装脚本**：重复运行输出 `Registration already matches; unchanged`；卸载只移除自身登记，会话、模型配置与偏好都保留。
+
 ## 使用
 
 打开输入框右下角的模型按钮，剩下的都在这张表里：
