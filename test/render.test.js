@@ -208,23 +208,25 @@ test('the effort picker is its own popover, not a page inside the model list', {
 
 test('the trigger honours the composer row compact contract', async () => {
   const source = await readFile(bundleUrl, 'utf8')
-  // The composer row measures "would the expanded controls fit on one line?",
-  // then sets data-model-compact, which flips these two variables. An occupant
-  // that ignores them keeps the full text and forces the row to wrap.
-  assert.match(source, /--dsh-composer-model-text-display/, 'labels must collapse when the row is compact')
-  assert.match(source, /--dsh-composer-model-icon-display/, 'an icon must take over when the row is compact')
+  // The composer row measures "would the expanded controls fit on one line?"
+  // and sets data-model-compact, which flips these two variables. The model
+  // name stays readable (ellipsis), so only the effort control folds away.
+  assert.match(source, /--dsh-composer-model-text-display/, 'the effort control collapses with the row')
   assert.ok(
-    /display:var\(--dsh-composer-model-text-display/.test(source)
-      && /display:var\(--dsh-composer-model-icon-display/.test(source),
-    'the variables must actually be consumed, not merely declared',
+    /display:var\(--dsh-composer-model-text-display/.test(source),
+    'the variable must actually be consumed, not merely declared',
+  )
+  assert.ok(
+    !/qms-trigger-label\{display:var\(--dsh-composer-model-text-display/.test(source),
+    'the model name must not be hidden by the compact contract',
   )
 })
 
-test('the trigger carries a compact icon alongside the labels', { skip }, async () => {
+test('the trigger keeps the model name in narrow rows instead of an icon', { skip }, async () => {
   const { entry } = await mount()
   const html = server.renderToString(React.createElement(entry.component, { ...entry.options.inject('session-1'), locked: false }))
-  assert.match(html, /qms-trigger-icon/)
   assert.match(html, /qms-trigger-label/)
+  assert.ok(!html.includes('qms-trigger-icon'), 'the name is never replaced by a glyph')
 })
 
 test('the model picker carries no effort surface', { skip }, async () => {

@@ -242,17 +242,18 @@ export function buildView(state, prefs, query) {
     }
   }
 
+  // Recents sit above favorites: the model just used is the likeliest next pick.
   const sections = []
-  const favoriteRows = prefs.favorites.map(key => byKey.get(key)).filter(row => row !== undefined)
-  if (favoriteRows.length > 0) {
-    sections.push({ kind: 'favorites', id: '__favorites', name: 'favorites', rows: favoriteRows, collapsed: false, count: favoriteRows.length })
-  }
   const recentRows = prefs.recents
     .map(row => byKey.get(row.key))
     .filter(row => row !== undefined && !favorites.has(row.key))
     .slice(0, RECENTS_SHOWN)
   if (recentRows.length > 0) {
     sections.push({ kind: 'recents', id: '__recents', name: 'recents', rows: recentRows, collapsed: false, count: recentRows.length })
+  }
+  const favoriteRows = prefs.favorites.map(key => byKey.get(key)).filter(row => row !== undefined)
+  if (favoriteRows.length > 0) {
+    sections.push({ kind: 'favorites', id: '__favorites', name: 'favorites', rows: favoriteRows, collapsed: false, count: favoriteRows.length })
   }
   for (const group of groups) {
     const rows = rowsByGroup.get(group.id) ?? []

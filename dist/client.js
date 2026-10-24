@@ -269,17 +269,18 @@ function buildView(state, prefs, query) {
     }
   }
 
+  // Recents sit above favorites: the model just used is the likeliest next pick.
   const sections = []
-  const favoriteRows = prefs.favorites.map(key => byKey.get(key)).filter(row => row !== undefined)
-  if (favoriteRows.length > 0) {
-    sections.push({ kind: 'favorites', id: '__favorites', name: 'favorites', rows: favoriteRows, collapsed: false, count: favoriteRows.length })
-  }
   const recentRows = prefs.recents
     .map(row => byKey.get(row.key))
     .filter(row => row !== undefined && !favorites.has(row.key))
     .slice(0, RECENTS_SHOWN)
   if (recentRows.length > 0) {
     sections.push({ kind: 'recents', id: '__recents', name: 'recents', rows: recentRows, collapsed: false, count: recentRows.length })
+  }
+  const favoriteRows = prefs.favorites.map(key => byKey.get(key)).filter(row => row !== undefined)
+  if (favoriteRows.length > 0) {
+    sections.push({ kind: 'favorites', id: '__favorites', name: 'favorites', rows: favoriteRows, collapsed: false, count: favoriteRows.length })
   }
   for (const group of groups) {
     const rows = rowsByGroup.get(group.id) ?? []
@@ -401,17 +402,18 @@ function withCollapsed(prefs, groupId, collapsed) {
     const t = key => copy[key] ?? COPY.zh[key] ?? key
 
     const css = `
-.qms-root{position:relative;display:flex;align-items:center;gap:6px;flex:0 0 auto;min-width:0}
-.qms-trigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:220px;height:28px;padding:0 5px 0 8px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.qms-root{position:relative;display:flex;align-items:center;gap:2px;flex:0 0 auto;min-width:0}
+.qms-trigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:220px;height:28px;padding:0 4px 0 8px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
 .qms-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .qms-trigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
 .qms-trigger:disabled{color:var(--dsw-alias-label-dimmed,#a8adb5);cursor:default}
-.qms-trigger-label{display:var(--dsh-composer-model-text-display,block);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.qms-trigger-icon{display:var(--dsh-composer-model-icon-display,none);flex:0 0 auto;line-height:0}
+.qms-trigger-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 窄行里保留模型名（超出用省略号），只把宽度收紧一点；图标不再顶替文字。 */
+@container (width<=560px){.qms-trigger{max-width:150px}.qms-trigger-label{max-width:150px}}
 /* 推理强度是模型按钮旁边的独立控件：各自 hover、各自点击、各自开自己的弹层。
-   控制行排不下一行时宿主会置 --dsh-composer-model-text-display:none，它与模型文字一起收起。 */
+   控制行排不下一行时宿主会置 --dsh-composer-model-text-display:none，强度按钮收起，退回模型菜单底部。 */
 .qms-effort{display:var(--dsh-composer-model-text-display,block);flex:0 0 auto}
-.qms-effort-btn{display:flex;align-items:center;gap:3px;height:28px;padding:0 6px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-caption,#8a8f98);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
+.qms-effort-btn{display:flex;align-items:center;gap:2px;height:28px;padding:0 4px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-caption,#8a8f98);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
 .qms-effort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
 .qms-effort-btn:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
 .qms-effort-btn:disabled{cursor:default;color:var(--dsw-alias-label-dimmed,#a8adb5)}
@@ -524,10 +526,6 @@ function withCollapsed(prefs, groupId, collapsed) {
         strokeWidth: 1.2,
         strokeLinejoin: 'round',
       }))
-    /** Compact trigger glyph: shown instead of the labels when the composer row is tight. */
-    const ModelIcon = () => h('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
-      h('path', { d: 'M8 1.6l1.6 4.4 4.4 1.6-4.4 1.6L8 13.6 6.4 9.2 2 7.6l4.4-1.6z', fill: 'currentColor' }))
-
     /**
      * One selectable model row: star · name · optional provider tag · multiplier · check.
      *
@@ -996,7 +994,6 @@ function withCollapsed(prefs, groupId, collapsed) {
             load()
           },
         },
-          h('span', { className: 'qms-trigger-icon', 'aria-hidden': true }, h(ModelIcon)),
           h('span', { className: 'qms-trigger-label' }, modelLabel),
           h(ChevronIcon, { open: open === 'models' })),
 

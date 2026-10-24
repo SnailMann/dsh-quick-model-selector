@@ -71,13 +71,13 @@ test('queryTerms splits on whitespace and lowercases', () => {
   assert.deepEqual(queryTerms(null), [])
 })
 
-test('buildView shows favorites and recents ahead of provider groups', () => {
+test('buildView shows recents and favorites ahead of provider groups', () => {
   const groups = [group('trae', 'Trae', [model('kimi', 'Kimi-K2.5'), model('glm', 'GLM-5-Turbo')])]
   const prefs = withRecent(withFavorite(emptyPrefs(), 'trae/glm'), 'trae/kimi')
   const view = buildView(state(groups, { provider: 'trae', model: 'glm' }), prefs, '')
-  assert.deepEqual(view.sections.map(section => section.kind), ['favorites', 'recents', 'group'])
-  assert.equal(view.sections[0].rows[0].key, 'trae/glm')
-  assert.equal(view.sections[1].rows[0].key, 'trae/kimi')
+  assert.deepEqual(view.sections.map(section => section.kind), ['recents', 'favorites', 'group'])
+  assert.equal(view.sections[0].rows[0].key, 'trae/kimi')
+  assert.equal(view.sections[1].rows[0].key, 'trae/glm')
   assert.equal(view.sections[2].collapsed, false)
   assert.equal(view.rows.length, 4)
 })

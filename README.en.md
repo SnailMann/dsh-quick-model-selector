@@ -4,30 +4,27 @@ English · [中文](README.md)
 
 Takes over the model seat at the bottom right of the DSH composer: instead of one long flat list of every provider, you get a search-first panel with favorites and recents pinned on top, collapsed provider groups, and reasoning effort as a separate second control. Built for setups with dozens or hundreds of models.
 
-The composer has two independent controls, each with its own hit area and popover:
-
-![Two controls in the composer](docs/images/composer.png)
-
 ![Model panel](docs/images/menu.png)
 
 ## Features
 
 - **Search first** — the panel opens with the cursor in the search box. Matching covers model name, provider name and model id; space-separated terms are ANDed.
-- **Favorites and recents** — your handful of everyday models stay at the top.
+- **Recents, then favorites** — what you just used sits at the very top, favorites right below it.
 - **Collapsible groups** — providers with more than six models start collapsed; the group holding the current model or a favorite stays open, and manual folding is remembered.
 - **Multiplier badges** — an `x0.28` token in the model name becomes a row-end badge, colored ≤0.3 green, ≤0.8 amber, >0.8 red.
 - **Separate reasoning effort** — its own button, popover and focus; hidden entirely when the current model has no reasoning support.
 - **Keyboard** — `⌘1–⌘9` quick pick, `⌘D` favorite, `Tab` fold, arrows plus Enter.
+- **Narrow rows keep the name** — the model name is never swapped for a glyph; it ellipsizes instead, and the effort control folds into the bottom of the menu.
 
 ![Search](docs/images/search.png)
 
 ![Reasoning effort](docs/images/effort.png)
 
-When the control row cannot fit two controls, the model button becomes an icon and effort moves to a row at the bottom of the menu:
+Narrow rows keep the model name and fold effort into the menu:
 
-![Narrow trigger](docs/images/compact.png)
+![Narrow row](docs/images/compact.png)
 
-![Narrow menu](docs/images/compact-menu.png)
+![Narrow row menu](docs/images/compact-menu.png)
 
 Same layout in dark theme:
 
