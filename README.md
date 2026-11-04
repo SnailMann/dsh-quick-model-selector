@@ -2,7 +2,9 @@
 
 [English](README.en.md) · 中文
 
-<img src="icon.png" alt="SnailMann 蜗牛图标" width="80" height="80">
+<img src="icon.png" alt="一只橘 oranji 微笑图标" width="80" height="80">
+
+一只橘 oranji 的 DSH 插件。
 
 **模型越来越多，切换不该越来越麻烦。**
 

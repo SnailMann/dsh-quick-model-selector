@@ -1,6 +1,8 @@
 # DSH Quick Model Selector
 
-<img src="icon.png" alt="SnailMann snail icon" width="80" height="80">
+<img src="icon.png" alt="一只橘 oranji smiling icon" width="80" height="80">
+
+A DSH plugin by 一只橘 oranji.
 
 English · [中文](README.md)
 
