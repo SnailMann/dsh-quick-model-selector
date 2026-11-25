@@ -89,7 +89,7 @@ const snapshot = (current = DEFAULT_CURRENT) => ({
 })
 
 /** Minimal host context: capture the one slot entry the plugin registers. */
-const mount = async (patch = text => text, current = DEFAULT_CURRENT, seed = null) => {
+const mount = async (patch = text => text, current = DEFAULT_CURRENT, seed = null, sessions = null) => {
   const { plugin, storage } = await loadFactory(patch, seed)
   const captured = []
   const directory = {
@@ -102,7 +102,10 @@ const mount = async (patch = text => text, current = DEFAULT_CURRENT, seed = nul
   }
   const ctx = {
     logger: { info: () => {} },
-    get: name => (name === 'modelDirectories' ? { directoryFor: () => directory } : undefined),
+    get: name => {
+      if (name === 'modelDirectories' && sessions === null) return { directoryFor: () => directory }
+      if (name === 'sessions' && sessions !== null) return sessions
+    },
     inject: (_deps, callback) => { callback(ctx) },
     slots: {
       inject: (_name, callback) => { callback() },
@@ -133,6 +136,35 @@ test('the injected face resolves the shared directory and its verbs', { skip }, 
   assert.equal(face.directory.getSnapshot().groups.length, 2)
   face.load()
   assert.equal(await directory.store.getSnapshot().current.provider, 'trae')
+})
+
+test('the fallback directory keeps a confirmed selection and lets transport failures be retried', { skip }, async () => {
+  let finishLoad
+  let shouldReject = false
+  const sessions = {
+    models: () => new Promise(resolve => { finishLoad = resolve }),
+    async selectModel({ provider, model }) {
+      if (shouldReject) throw new Error('Transport disconnected')
+      return { result: { ok: true, value: { selected: { provider, model } } } }
+    },
+  }
+  const { entry } = await mount(undefined, DEFAULT_CURRENT, null, sessions)
+  const face = entry.options.inject('test-session')
+  const choice = { provider: 'trae', model: 'kimi-k2.5' }
+  face.load()
+  assert.equal(await face.select(choice), true)
+  finishLoad({ result: { ok: true, value: snapshot() } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(face.directory.getSnapshot().current, choice)
+
+  shouldReject = true
+  assert.equal(await face.select(DEFAULT_CURRENT), false)
+  assert.equal(face.directory.getSnapshot().status, 'error')
+  assert.equal(face.directory.getSnapshot().error, 'Transport disconnected')
+  assert.deepEqual(face.directory.getSnapshot().current, choice)
+  shouldReject = false
+  assert.equal(await face.select(DEFAULT_CURRENT), true)
+  assert.deepEqual(face.directory.getSnapshot().current, DEFAULT_CURRENT)
 })
 
 test('the seat renders the current model and drops the multiplier token', { skip }, async () => {

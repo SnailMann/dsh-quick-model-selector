@@ -22,7 +22,8 @@ window.__ModuleLoader__.load({
   factory: require => {
     const React = require('react')
     const h = React.createElement
-    const { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } = React
+    const { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } = React
+    const useBrowserLayoutEffect = typeof document !== 'undefined' && document.documentElement ? useLayoutEffect : useEffect
 
     // __LOGIC_BUNDLE__
 
@@ -30,6 +31,10 @@ window.__ModuleLoader__.load({
     // Pre-rename package key: read once, migrated, then dropped.
     const LEGACY_PREFS_KEY = 'dsh-model-palette:prefs:v1'
     const FALLBACK_CACHE_LIMIT = 32
+    const MODEL_WIDTH = 220
+    const COMPACT_MODEL_WIDTH = 150
+    const EFFORT_WIDTH = 72
+    const CONTROL_GAP = 2
 
     const COPY = {
       zh: {
@@ -37,6 +42,8 @@ window.__ModuleLoader__.load({
         triggerFallback: '选择模型',
         triggerAria: '选择模型',
         favorites: '收藏',
+        fav: '收藏模型',
+        unfav: '取消收藏',
         recents: '最近使用',
         results: '搜索结果',
         empty: '没有匹配的模型',
@@ -60,6 +67,8 @@ window.__ModuleLoader__.load({
         triggerFallback: 'Select model',
         triggerAria: 'Select model',
         favorites: 'Favorites',
+        fav: 'Add to favorites',
+        unfav: 'Remove from favorites',
         recents: 'Recent',
         results: 'Results',
         empty: 'No matching model',
@@ -84,29 +93,28 @@ window.__ModuleLoader__.load({
     const t = key => copy[key] ?? COPY.zh[key] ?? key
 
     const css = `
-.qms-root{position:relative;display:flex;align-items:center;gap:2px;flex:0 0 auto;min-width:0}
-.qms-trigger{display:flex;box-sizing:border-box;align-items:center;gap:4px;min-width:0;max-width:var(--qms-model-width,220px);height:28px;padding:0 4px 0 8px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
-.qms-root[data-qms-layout="compact"] .qms-trigger{width:var(--qms-model-width,150px)}
-.qms-trigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
-.qms-trigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
-.qms-trigger:disabled{color:var(--dsw-alias-label-dimmed,#a8adb5);cursor:default}
-.qms-trigger-label{display:block;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.qms-root{--qms-model-cap:var(--qms-model-width,${MODEL_WIDTH}px);position:relative;display:flex;justify-content:flex-end;align-items:center;gap:${CONTROL_GAP}px;flex:0 0 auto;min-width:0;width:calc(var(--qms-model-cap) + ${EFFORT_WIDTH + CONTROL_GAP}px)}
+.qms-root[data-qms-layout="compact"]{--qms-model-cap:var(--qms-model-width,${COMPACT_MODEL_WIDTH}px);width:var(--qms-model-cap)}
+.qms-trigger,.qms-effort-btn{display:flex;box-sizing:border-box;align-items:center;gap:5px;min-width:0;height:28px;padding:0 8px;border:none;border-radius:var(--dsw-radius-sm,8px);outline:none;background:transparent;color:var(--dsw-alias-label-secondary,#5f6368);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.qms-trigger{max-width:var(--qms-model-cap)}
+.qms-trigger-label,.qms-effort-label{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+@media (hover:hover){.qms-trigger:hover:not(:disabled),.qms-effort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}}
+.qms-trigger[aria-expanded="true"],.qms-effort-btn[aria-expanded="true"]{background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
+.qms-trigger:focus-visible,.qms-effort-btn:focus-visible{outline:1px solid var(--dsw-focus-ring-color,#2377df);outline-offset:1px}
+.qms-trigger:disabled,.qms-effort-btn:disabled{color:var(--dsw-alias-label-dimmed,#a8adb5);cursor:default}
 /* First-paint fallback; measured layouts use the actual remaining row space. */
-@container (width<=560px){.qms-root:not([data-qms-layout]) .qms-trigger{max-width:150px}}
+@container (width<=560px){.qms-root:not([data-qms-layout]){--qms-model-cap:${COMPACT_MODEL_WIDTH}px;width:var(--qms-model-cap)}.qms-root:not([data-qms-layout]) .qms-effort{display:none}}
 /* 推理强度是模型按钮旁边的独立控件：各自 hover、各自点击、各自开自己的弹层。
    控制行排不下一行时宿主会置 --dsh-composer-model-text-display:none，强度按钮收起，退回模型菜单底部。 */
-.qms-effort{display:var(--dsh-composer-model-text-display,block);flex:0 0 auto}
+.qms-effort{display:var(--dsh-composer-model-text-display,block);flex:0 0 ${EFFORT_WIDTH}px;min-width:0}
 .qms-root[data-qms-layout="expanded"] .qms-effort{display:block}
-/* Keep its natural width measurable while removing it from layout and focus. */
-.qms-root[data-qms-layout="compact"] .qms-effort{display:block;position:absolute;visibility:hidden;pointer-events:none;width:max-content}
-.qms-effort-btn{display:flex;align-items:center;gap:2px;height:28px;padding:0 4px;border:none;border-radius:24px;outline:none;background:transparent;color:var(--dsw-alias-label-caption,#8a8f98);font-family:inherit;font-size:13px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer}
-.qms-effort-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}
-.qms-effort-btn:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3,#c7cbd1)}
-.qms-effort-btn:disabled{cursor:default;color:var(--dsw-alias-label-dimmed,#a8adb5)}
+.qms-root[data-qms-layout="compact"] .qms-effort{display:none}
+.qms-effort-btn{justify-content:center;width:100%;padding:0 4px;color:var(--dsw-alias-label-tertiary,#70757d);font-weight:400}
+.qms-effort-btn:disabled{color:var(--dsw-alias-label-dimmed,#a8adb5)}
 .qms-chevron{flex:0 0 auto;color:var(--dsw-alias-label-caption,#8a8f98);transition:transform 120ms ease}
 .qms-chevron.open{transform:rotate(180deg)}
 .qms-menu,.qms-menu *{box-sizing:border-box}
-.qms-menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;display:flex;flex-direction:column;width:min(336px,calc(100vw - 32px));max-height:min(430px,calc(100vh - 140px));overflow:hidden;padding:5px;border:.5px solid var(--dsw-alias-border-l1,#e5e7eb);border-radius:var(--dsw-radius-lg,12px);outline:none;background:var(--dsw-specific-menu,#fff);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter,none);backdrop-filter:var(--dsw-menu-backdrop-filter,none);box-shadow:var(--dsw-elevation-prominent,0 12px 32px rgba(0,0,0,.14));color:var(--dsw-alias-label-primary,#1f2328);font-family:inherit;font-size:13px;line-height:18px;--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2,#c7cbd1);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2,#a8adb5)}
+.qms-menu{position:absolute;inset:auto 0 calc(100% + 8px) auto;z-index:30;display:flex;flex-direction:column;width:min(336px,calc(100vw - 32px));max-height:min(430px,calc(100vh - 140px));overflow:hidden;margin:0;padding:5px;border:.5px solid var(--dsw-alias-border-l1,#e5e7eb);border-radius:var(--dsw-radius-lg,12px);outline:none;background:var(--dsw-specific-menu,#fff);-webkit-backdrop-filter:var(--dsw-menu-backdrop-filter,none);backdrop-filter:var(--dsw-menu-backdrop-filter,none);box-shadow:var(--dsw-elevation-prominent,0 12px 32px rgba(0,0,0,.14));color:var(--dsw-alias-label-primary,#1f2328);font-family:inherit;font-size:13px;line-height:18px;--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2,#c7cbd1);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2,#a8adb5)}
 .qms-menu-effort{width:min(212px,calc(100vw - 32px));max-height:min(320px,calc(100vh - 140px))}
 .qms-search{display:flex;flex:0 0 auto;align-items:center;gap:6px;margin:0 0 4px;padding:5px 7px;border:1px solid var(--dsw-alias-border-inverted,#e5e7eb);border-radius:7px;background:var(--dsw-alias-background-secondary,#f7f8f9)}
 .qms-search svg{flex:0 0 auto;color:var(--dsw-alias-label-tertiary,#8a8f98)}
@@ -210,31 +218,22 @@ window.__ModuleLoader__.load({
         const gaps = Math.max(0, widths.length - 1) * (parseFloat(style.columnGap) || 0)
         const occupied = widths.reduce((sum, width) => sum + width, 0) + gaps - root.getBoundingClientRect().width
         const budget = Math.floor(row.clientWidth - padding - occupied - 2)
-        const trigger = root.querySelector('.qms-trigger')
-        const label = root.querySelector('.qms-trigger-label')
-        if (trigger === null || label === null || row.clientWidth === 0) return
-        const triggerStyle = getComputedStyle(trigger)
-        const range = document.createRange()
-        range.selectNodeContents(label)
-        const modelWidth = Math.min(220, Math.ceil(range.getBoundingClientRect().width
-          + (parseFloat(triggerStyle.paddingLeft) || 0) + (parseFloat(triggerStyle.paddingRight) || 0)
-          + (parseFloat(triggerStyle.columnGap) || 0) + (root.querySelector('.qms-chevron')?.getBoundingClientRect().width ?? 0)))
-        const effort = root.querySelector('.qms-effort')
-        const effortWidth = effort?.getBoundingClientRect().width ?? 0
+        if (row.clientWidth === 0) return
+        // Keep a stable footprint when a new model has a different name or no
+        // reasoning controls. The host's available width decides the layout.
+        const expandedWidth = budget - EFFORT_WIDTH - CONTROL_GAP
         const compact = row.clientWidth - padding <= 560
-          || budget < modelWidth + (effort === null ? 0 : effortWidth + 2)
-          || (effort !== null && effortWidth === 0)
+          || expandedWidth < COMPACT_MODEL_WIDTH
         // Preserve a short readable label. Beyond this floor, let the host
         // wrap its groups rather than overlap the microphone or send action.
-        publish({ compact, modelWidth: compact ? Math.max(56, Math.min(150, budget)) : 220 })
+        const modelWidth = compact ? Math.max(56, Math.min(COMPACT_MODEL_WIDTH, budget)) : Math.min(MODEL_WIDTH, expandedWidth)
+        publish({ compact, modelWidth })
       }
       const schedule = () => {
         if (frame === null) frame = requestAnimationFrame(measure)
       }
       const resize = new ResizeObserver(schedule)
       for (const element of new Set([row, root, ...row.children])) resize.observe(element)
-      const effort = root.querySelector('.qms-effort')
-      if (effort !== null) resize.observe(effort)
       const mutation = new MutationObserver(schedule)
       mutation.observe(row, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'style'] })
       document.fonts?.addEventListener('loadingdone', schedule)
@@ -246,6 +245,17 @@ window.__ModuleLoader__.load({
         document.fonts?.removeEventListener('loadingdone', schedule)
       }
     }
+
+    const scrollActiveRow = body => {
+      const row = body?.querySelector('[data-active="true"]')
+      if (!row) return
+      const bounds = body.getBoundingClientRect()
+      const rect = row.getBoundingClientRect()
+      if (rect.top < bounds.top) body.scrollTop += rect.top - bounds.top
+      else if (rect.bottom > bounds.bottom) body.scrollTop += rect.bottom - bounds.bottom
+    }
+
+    const isSelecting = snapshot => snapshot.status === 'selecting' || snapshot.pending != null
 
     const SearchIcon = () => h('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
       h('circle', { cx: 7, cy: 7, r: 4.6, stroke: 'currentColor', strokeWidth: 1.3 }),
@@ -295,6 +305,7 @@ window.__ModuleLoader__.load({
           className: `qms-star${row.favorite ? ' on' : ''}`,
           title: row.favorite ? t('unfav') : t('fav'),
           'aria-label': row.favorite ? t('unfav') : t('fav'),
+          onMouseDown: event => event.preventDefault(),
           onClick: event => {
             event.stopPropagation()
             onStar()
@@ -337,12 +348,11 @@ window.__ModuleLoader__.load({
       // are independent surfaces — opening one never pulls the other in.
       const [open, setOpen] = useState(null)
       const [query, setQuery] = useState('')
-      const [active, setActive] = useState(0)
+      const [highlighted, setHighlighted] = useState(null)
       const [effortActive, setEffortActive] = useState(0)
       const [prefs, setPrefs] = useState(readPrefs)
       const [failure, setFailure] = useState(null)
       const [overflowing, setOverflowing] = useState(false)
-      const [menuLayout, setMenuLayout] = useState(null)
       const [layout, setLayout] = useState(null)
 
       const rootRef = useRef(null)
@@ -351,11 +361,14 @@ window.__ModuleLoader__.load({
       const menuRef = useRef(null)
       const inputRef = useRef(null)
       const bodyRef = useRef(null)
+      const hoverHighlightRef = useRef(false)
+      const selectionInFlightRef = useRef(false)
+      const restoreFocusRef = useRef(null)
       // Folding removes the highlighted row from navigation. Keep its group
       // and key until the user moves, so the next Tab can unfold it again.
       const tabTargetRef = useRef(null)
 
-      useEffect(() => {
+      useBrowserLayoutEffect(() => {
         if (!available || rootRef.current === null) return
         return observeSeatLayout(rootRef.current, next => {
           setLayout(previous => previous?.compact === next.compact && previous?.modelWidth === next.modelWidth ? previous : next)
@@ -364,7 +377,11 @@ window.__ModuleLoader__.load({
 
       const view = useMemo(() => buildView(state, prefs, query), [state, prefs, query])
       const rows = view.rows
-      const busy = state.status === 'selecting'
+      // Recents and favorites can repeat a model from its provider group.
+      // Keep that particular row highlighted when the list moves around it.
+      const exactIndex = highlighted === null ? 0 : rows.findIndex(row => row.key === highlighted.key && row.sectionKind === highlighted.sectionKind)
+      const active = exactIndex >= 0 ? exactIndex : rows.findIndex(row => row.key === highlighted.key)
+      const busy = isSelecting(state)
 
       const current = useMemo(() => {
         if (state.current === null || state.current === undefined) return null
@@ -423,22 +440,13 @@ window.__ModuleLoader__.load({
         return () => document.removeEventListener('mousedown', closeOutside)
       }, [open])
 
-      // The search field owns focus in the model picker; the panel itself does
-      // in the effort popover (there is nothing to type there).
-      useEffect(() => {
-        if (open === null) return
-        if (open === 'models') inputRef.current?.focus()
-        else menuRef.current?.focus()
-      }, [open])
+      useBrowserLayoutEffect(() => {
+        if (open === 'models' && highlighted === null && rows.length > 0) setHighlighted(rows[0])
+      }, [open, highlighted, rows])
 
       useEffect(() => {
-        if (open !== 'models') return
-        setActive(at => (rows.length === 0 ? 0 : Math.min(at, rows.length - 1)))
-      }, [open, rows.length])
-
-      useEffect(() => {
-        if (open !== 'models') return
-        bodyRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+        if (open !== 'models' || hoverHighlightRef.current) return
+        scrollActiveRow(bodyRef.current)
       }, [open, active, view])
 
       // Opening the effort popover lands the highlight on the current level.
@@ -450,8 +458,8 @@ window.__ModuleLoader__.load({
       }, [open, effortChoices, effectiveEffort])
 
       useEffect(() => {
-        if (open !== 'effort') return
-        bodyRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+        if (open !== 'effort' || hoverHighlightRef.current) return
+        scrollActiveRow(bodyRef.current)
       }, [open, effortActive])
 
       // A clipped row at the scroll edge reads as a rendering bug, so the list
@@ -462,85 +470,140 @@ window.__ModuleLoader__.load({
       }, [])
 
       useEffect(() => {
+        const body = bodyRef.current
+        if (open !== 'models' || body === null) return
+        syncOverflow()
+        const resize = new ResizeObserver(syncOverflow)
+        resize.observe(body)
+        return () => resize.disconnect()
+      }, [open, available, syncOverflow])
+
+      useEffect(() => {
         if (open === 'models') syncOverflow()
       }, [open, view, syncOverflow])
 
       // `surface` names which control owns focus once the popover is gone —
       // `null` means the interaction is over (outside click, trigger toggle).
       const close = useCallback(surface => {
+        restoreFocusRef.current = surface
         setOpen(null)
         setQuery('')
         setFailure(null)
-        if (surface === null || surface === undefined) return
-        queueMicrotask(() => {
-          const effort = effortRef.current
-          const visible = effort !== null && effort.offsetParent !== null && getComputedStyle(effort).visibility !== 'hidden'
-          const target = surface === 'effort' && visible ? effort : triggerRef.current
-          target?.focus()
-        })
       }, [])
 
-      /** Keep menus inside the viewport, flipping below when there is more room. */
-      const placeMenu = useCallback(surface => {
-        const rect = rootRef.current?.getBoundingClientRect()
-        if (rect === undefined) return null
-        const viewport = document.documentElement.clientWidth
-        const width = Math.min(surface === 'effort' ? 212 : 336, viewport - 32)
-        const above = Math.max(0, rect.top - 24)
-        const below = Math.max(0, window.innerHeight - rect.bottom - 24)
-        const upwards = above >= 180 || above >= below
-        return {
-          position: 'fixed',
-          width,
-          left: Math.max(16, Math.min(rect.right - width, viewport - width - 16)),
-          right: 'auto',
-          top: upwards ? 'auto' : rect.bottom + 8,
-          bottom: upwards ? window.innerHeight - rect.top + 8 : 'auto',
-          maxHeight: Math.min(surface === 'effort' ? 320 : 430, upwards ? above : below),
-        }
-      }, [])
+      useBrowserLayoutEffect(() => {
+        if (open !== null && (locked || !available)) close(null)
+      }, [open, locked, available, close])
+
+      useBrowserLayoutEffect(() => {
+        if (open !== null || restoreFocusRef.current === null) return
+        const effort = effortRef.current
+        const visible = effort !== null && !effort.disabled && effort.offsetWidth > 0
+        const target = restoreFocusRef.current === 'effort' && visible ? effort : triggerRef.current
+        restoreFocusRef.current = null
+        target?.focus({ preventScroll: true })
+      }, [open])
 
       const openSurface = useCallback(surface => {
-        setMenuLayout(placeMenu(surface))
+        hoverHighlightRef.current = false
         setOpen(surface)
-      }, [placeMenu])
+      }, [])
 
-      useEffect(() => {
-        if (open === null || rootRef.current === null) return
-        const place = () => setMenuLayout(placeMenu(open))
-        const resize = new ResizeObserver(place)
-        resize.observe(rootRef.current)
+      useBrowserLayoutEffect(() => {
+        const menu = menuRef.current
+        if (open === null || menu === null) return
+        // The browser's top layer escapes the host pane's containing block and
+        // clipping while keeping theme inheritance and keyboard order intact.
+        menu.showPopover?.()
+        const gap = 8
+        const margin = 16
+        const minHeight = 120
+        const maxWidth = open === 'effort' ? 212 : 336
+        const maxHeight = open === 'effort' ? 320 : 430
         const row = composerRow(rootRef.current)
-        if (row !== null) for (const element of [row, ...row.children]) resize.observe(element)
-        const moved = new MutationObserver(place)
-        for (let element = rootRef.current.parentElement; element !== null; element = element.parentElement) {
-          moved.observe(element, { attributes: true, attributeFilter: ['style', 'class', 'hidden'] })
+        let frame
+        let previous
+        let upwards
+        const place = () => {
+          const effort = effortRef.current
+          const anchor = open === 'effort' && effort?.offsetWidth > 0 ? effort : triggerRef.current
+          const rect = anchor.getBoundingClientRect()
+          const viewport = window.visualViewport
+          const x = viewport?.offsetLeft ?? 0
+          const y = viewport?.offsetTop ?? 0
+          const width = viewport?.width ?? document.documentElement.clientWidth
+          const height = viewport?.height ?? window.innerHeight
+          const bottom = y + height - margin
+          const top = y + margin
+          const aboveEnd = Math.min(rect.top - gap, bottom)
+          const belowStart = Math.max(rect.bottom + gap, top)
+          const above = aboveEnd - top
+          const below = bottom - belowStart
+          if (upwards === undefined || (upwards ? above : below) < minHeight) {
+            upwards = above >= maxHeight || above >= below
+          }
+          const space = upwards ? above : below
+          // A very short viewport can still display a scrollable list by
+          // letting the panel overlap its anchor when both sides are too short.
+          const overlay = space < minHeight
+          const panelWidth = Math.max(0, Math.min(maxWidth, width - margin * 2))
+          const viewportLeft = x + margin
+          const viewportRight = x + width - margin
+          const rowRect = row?.getBoundingClientRect()
+          const rowLeft = Math.max(viewportLeft, rowRect?.left ?? viewportLeft)
+          const rowRight = Math.min(viewportRight, rowRect?.right ?? viewportRight)
+          // Center any necessary overhang on the composer so that crossing
+          // the fit threshold during a resize does not move the menu abruptly.
+          const overhang = Math.max(0, panelWidth - (rowRight - rowLeft)) / 2
+          const rowAlignedLeft = Math.max(rowLeft - overhang, Math.min(rect.right - panelWidth, rowRight + overhang - panelWidth))
+          const left = Math.max(viewportLeft, Math.min(rowAlignedLeft, viewportRight - panelWidth))
+          const panelHeight = Math.max(0, Math.min(maxHeight, overlay ? bottom - top : space))
+          const insetTop = overlay ? top : upwards ? 'auto' : belowStart
+          const insetBottom = !overlay && upwards ? window.innerHeight - aboveEnd : 'auto'
+          const geometry = `${panelWidth},${left},${panelHeight},${insetTop},${insetBottom}`
+          if (geometry !== previous) {
+            previous = geometry
+            Object.assign(menu.style, {
+              position: 'fixed', right: 'auto', width: `${panelWidth}px`, left: `${left}px`, maxHeight: `${panelHeight}px`,
+              top: insetTop === 'auto' ? 'auto' : `${insetTop}px`,
+              bottom: insetBottom === 'auto' ? 'auto' : `${insetBottom}px`,
+            })
+          }
+          // Sidebars can move the anchor without resizing it or the window.
+          frame = requestAnimationFrame(place)
         }
-        window.addEventListener('resize', place)
-        window.addEventListener('scroll', place, true)
-        return () => {
-          resize.disconnect()
-          moved.disconnect()
-          window.removeEventListener('resize', place)
-          window.removeEventListener('scroll', place, true)
+        place()
+        const focus = open === 'models' ? inputRef.current : menu
+        focus?.focus({ preventScroll: true })
+        return () => cancelAnimationFrame(frame)
+      }, [open, available])
+
+      const submitSelection = useCallback(async (selection, onAccepted, recentKey) => {
+        const menu = menuRef.current
+        if (menu === null || locked || !available || selectionInFlightRef.current || isSelecting(directory.getSnapshot())) return
+        selectionInFlightRef.current = true
+        setFailure(null)
+        try {
+          const accepted = await select(selection)
+          if (accepted && recentKey !== undefined) remember(recentKey)
+          // Dismissing or switching panes ends the menu's interaction. A late
+          // response still changes the host selection but must leave focus alone.
+          if (menuRef.current !== menu) return
+          if (accepted) {
+            onAccepted()
+          } else {
+            const message = directory.getSnapshot().error
+            setFailure(message == null ? t('failed') : `${t('failed')} · ${message}`)
+          }
+        } finally {
+          selectionInFlightRef.current = false
         }
-      }, [open, placeMenu])
+      }, [available, directory, locked, remember, select])
 
       const pick = useCallback(row => {
-        if (row === undefined || row === null) return
-        setFailure(null)
-        void select(row.selection).then(accepted => {
-          if (!accepted) {
-            const message = directory.getSnapshot().error
-            setFailure(message === null || message === undefined ? t('failed') : `${t('failed')} · ${message}`)
-            return
-          }
-          // Picking a model ends the interaction, exactly like the stock
-          // picker: effort is a separate control the user opens on purpose.
-          remember(row.key)
-          close('models')
-        })
-      }, [select, remember, close, directory])
+        if (row == null) return
+        void submitSelection(row.selection, () => close('models'), row.key)
+      }, [submitSelection, close])
 
       const toggleFavorite = useCallback(row => {
         if (row === undefined || row === null) return
@@ -561,21 +624,13 @@ window.__ModuleLoader__.load({
       }, [])
 
       const chooseEffort = useCallback(effort => {
-        if (state.current === null || state.current === undefined) return
-        setFailure(null)
-        void select({
+        if (state.current == null) return
+        void submitSelection({
           provider: state.current.provider,
           model: state.current.model,
           ...effort === undefined ? {} : { reasoningEffort: effort },
-        }).then(accepted => {
-          if (accepted) {
-            close('effort')
-            return
-          }
-          const message = directory.getSnapshot().error
-          setFailure(message === null || message === undefined ? t('failed') : `${t('failed')} · ${message}`)
-        })
-      }, [select, state.current, directory, close])
+        }, () => close('effort'))
+      }, [submitSelection, state.current, close])
 
       const onKeyDown = useCallback(event => {
         if (open === null || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
@@ -593,6 +648,7 @@ window.__ModuleLoader__.load({
           const count = effortChoices === null ? 0 : effortChoices.length
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
+            hoverHighlightRef.current = false
             setEffortActive(at => stepIndex(at, count, event.key === 'ArrowDown' ? 1 : -1))
             return
           }
@@ -612,8 +668,10 @@ window.__ModuleLoader__.load({
 
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
+          hoverHighlightRef.current = false
           tabTargetRef.current = null
-          setActive(at => stepIndex(at, rows.length, event.key === 'ArrowDown' ? 1 : -1))
+          const next = stepIndex(active, rows.length, event.key === 'ArrowDown' ? 1 : -1)
+          setHighlighted(rows[next] ?? null)
           return
         }
         if (event.key === 'Enter') {
@@ -624,9 +682,10 @@ window.__ModuleLoader__.load({
         if (event.key === 'Escape') {
           event.preventDefault()
           if (query !== '') {
+            hoverHighlightRef.current = false
             setQuery('')
             tabTargetRef.current = null
-            setActive(0)
+            setHighlighted(null)
             return
           }
           close('models')
@@ -643,9 +702,10 @@ window.__ModuleLoader__.load({
             tabTargetRef.current = { provider: section.id, key: row?.key ?? section.rows[0]?.key }
           }
           if (section.collapsed) {
+            hoverHighlightRef.current = false
             const expanded = buildView(state, withCollapsed(prefs, section.id, false), query)
-            const restored = expanded.rows.findIndex(candidate => candidate.key === tabTargetRef.current.key)
-            setActive(restored < 0 ? 0 : restored)
+            const restored = expanded.rows.find(candidate => candidate.key === tabTargetRef.current.key && candidate.sectionKind === 'group')
+            setHighlighted(restored ?? null)
           }
           toggleGroup(section.id, section.collapsed)
           return
@@ -659,7 +719,10 @@ window.__ModuleLoader__.load({
         }
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
           event.preventDefault()
-          toggleFavorite(rows[active])
+          const row = rows[active]
+          if (row === undefined) return
+          setHighlighted(row)
+          toggleFavorite(row)
         }
       }, [open, effortChoices, effortActive, chooseEffort, close, rows, active, pick, query, view.sections, view.searching, state, prefs, toggleGroup, toggleFavorite])
 
@@ -685,10 +748,15 @@ window.__ModuleLoader__.load({
           disabled: busy,
           onPick: () => pick(row),
           onHover: () => {
+            hoverHighlightRef.current = true
             tabTargetRef.current = null
-            setActive(index)
+            setHighlighted(rows[index])
           },
-          onStar: () => toggleFavorite(row),
+          onStar: () => {
+            setHighlighted(rows[index])
+            toggleFavorite(row)
+            inputRef.current?.focus({ preventScroll: true })
+          },
         })
       }
 
@@ -723,9 +791,10 @@ window.__ModuleLoader__.load({
             spellCheck: false,
             autoComplete: 'off',
             onChange: event => {
+              hoverHighlightRef.current = false
               setQuery(event.currentTarget.value)
               tabTargetRef.current = null
-              setActive(0)
+              setHighlighted(null)
             },
           }),
           h('span', { className: 'qms-kbd' }, 'esc')),
@@ -792,7 +861,10 @@ window.__ModuleLoader__.load({
             checked: effectiveEffort === choice.value,
             disabled: busy,
             onPick: () => chooseEffort(choice.value),
-            onHover: () => setEffortActive(index),
+            onHover: () => {
+              hoverHighlightRef.current = true
+              setEffortActive(index)
+            },
           }))),
 
         h('div', { className: 'qms-foot' }, t('keysEffort').map(text => h('span', { key: text }, text))))
@@ -801,6 +873,9 @@ window.__ModuleLoader__.load({
         ref: rootRef,
         className: 'qms-root',
         onKeyDown,
+        onBlur: event => {
+          if (open !== null && event.relatedTarget !== null && !event.currentTarget.contains(event.relatedTarget)) close(null)
+        },
         'data-qms-layout': layout === null ? undefined : layout.compact ? 'compact' : 'expanded',
         style: layout === null ? undefined : { '--qms-model-width': `${layout.modelWidth}px` },
       },
@@ -823,7 +898,7 @@ window.__ModuleLoader__.load({
             openSurface('models')
             setQuery('')
             tabTargetRef.current = null
-            setActive(0)
+            setHighlighted(null)
             setFailure(null)
             load()
           },
@@ -853,35 +928,40 @@ window.__ModuleLoader__.load({
               setFailure(null)
             },
           },
-            effortLabel,
+            h('span', { className: 'qms-effort-label' }, effortLabel),
             h(ChevronIcon, { open: open === 'effort' }))),
 
         open === 'models' && h('div', {
           ref: menuRef,
           className: 'qms-menu',
+          popover: 'manual',
           role: 'menu',
           tabIndex: -1,
           'aria-label': t('selectAria'),
-          style: menuLayout ?? undefined,
         }, modelsPane),
 
         open === 'effort' && h('div', {
           ref: menuRef,
           className: 'qms-menu qms-menu-effort',
+          popover: 'manual',
           role: 'menu',
           tabIndex: -1,
           'aria-label': t('effort'),
-          style: menuLayout ?? undefined,
         }, effortPopup))
     }
 
     /** Minimal directory for hosts that do not expose the `modelDirectories` service. */
     const makeDirectory = (sessions, sessionId) => {
       let snapshot = { current: null, routable: null, groups: [], failures: [], status: 'idle', error: null }
+      let revision = 0
       const listeners = new Set()
       const update = patch => {
         snapshot = { ...snapshot, ...patch }
         for (const listener of listeners) listener()
+      }
+      const fail = (request, error) => {
+        if (request === revision) update({ status: 'error', error: error instanceof Error ? error.message : String(error) })
+        throw error
       }
       return {
         store: {
@@ -892,28 +972,33 @@ window.__ModuleLoader__.load({
           getSnapshot: () => snapshot,
         },
         async load() {
+          if (isSelecting(snapshot)) return snapshot
+          const request = ++revision
           update({ status: 'loading', error: null })
-          const { result } = await sessions.models({ sessionId })
-          if (!result.ok) {
-            update({ status: 'error', error: `${result.error.code}: ${result.error.message}` })
-            throw new Error(result.error.message)
+          try {
+            const { result } = await sessions.models({ sessionId })
+            if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+            if (request === revision) update({ ...result.value, status: 'ready', error: null })
+            return result.value
+          } catch (error) {
+            fail(request, error)
           }
-          update({ ...result.value, status: 'ready', error: null })
-          return result.value
         },
         async select(selection) {
+          const request = ++revision
           update({ status: 'selecting', error: null })
-          const { result } = await sessions.selectModel({
-            sessionId,
-            provider: selection.provider,
-            model: selection.model,
-            ...selection.reasoningEffort === undefined ? {} : { reasoningEffort: selection.reasoningEffort },
-          })
-          if (!result.ok) {
-            update({ status: 'error', error: `${result.error.code}: ${result.error.message}` })
-            throw new Error(result.error.message)
+          try {
+            const { result } = await sessions.selectModel({
+              sessionId,
+              provider: selection.provider,
+              model: selection.model,
+              ...selection.reasoningEffort === undefined ? {} : { reasoningEffort: selection.reasoningEffort },
+            })
+            if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+            if (request === revision) update({ current: result.value.selected, routable: true, status: 'ready', error: null })
+          } catch (error) {
+            fail(request, error)
           }
-          update({ current: result.value.selected, routable: true, status: 'ready', error: null })
         },
       }
     }
@@ -978,9 +1063,17 @@ window.__ModuleLoader__.load({
                 load: () => {
                   if (available) directory.load().catch(() => { /* surfaced on the store */ })
                 },
-                select: selection => available
-                  ? directory.select(selection).then(() => true, () => false)
-                  : Promise.resolve(false),
+                select: async selection => {
+                  if (!available) return false
+                  try {
+                    const result = await directory.select(selection)
+                    // The shared directory returns an outcome. The local
+                    // fallback resolves without a value or throws on failure.
+                    return result?.ok !== false
+                  } catch {
+                    return false
+                  }
+                },
               }
             },
           }, QuickModelSelector)

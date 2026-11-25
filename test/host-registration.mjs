@@ -1,23 +1,29 @@
 // Run with DSH Desktop's Electron as Node: verifies the installed desktop's
 // real plugin inventory and bundle composition for this package.
 //
-//   ELECTRON_RUN_AS_NODE=1 "/Applications/DSH Desktop.app/Contents/MacOS/DSH Desktop" \
-//     test/host-registration.mjs
+//   ELECTRON_RUN_AS_NODE=1 "$DSH_DESKTOP_EXECUTABLE" test/host-registration.mjs
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { pathToFileURL, fileURLToPath } from 'node:url'
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const PACKAGE = 'dsh-quick-model-selector'
-const resources = '/Applications/DSH Desktop.app/Contents/Resources'
+const resources = resolve(dirname(process.execPath), '../Resources')
 const anchor = `${resources}/app.asar/node_modules/@deepseek-ai/dsh/package.json`
-const { registerHostModuleFallback } = await import(pathToFileURL(`${resources}/host-module-fallback.mjs`))
-registerHostModuleFallback(`${resources}/app.asar/node_modules/@deepseek-ai/dsh/lib/bin.js`)
+const legacyBootstrap = join(resources, 'host-module-fallback.mjs')
+let loadHostModule = createRequire(anchor)
+if (existsSync(legacyBootstrap)) {
+  const { registerHostModuleFallback } = await import(pathToFileURL(legacyBootstrap))
+  registerHostModuleFallback(`${resources}/app.asar/node_modules/@deepseek-ai/dsh/lib/bin.js`)
+  loadHostModule = specifier => import(specifier)
+}
 
-const { loadProfileDirectory, composeEntries, readPluginMeta } = await import('@deepseek-ai/dsh-app-boot')
-const { PluginManager } = await import('@deepseek-ai/dsh-plugin-manager')
+const { loadProfileDirectory, composeEntries, readPluginMeta } = await loadHostModule('@deepseek-ai/dsh-app-boot')
+const { PluginManager } = await loadHostModule('@deepseek-ai/dsh-plugin-manager')
 const home = await mkdtemp(join(tmpdir(), 'dsh-qms-registration-'))
 const dir = join(home, 'profiles/web')
 try {

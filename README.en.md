@@ -18,7 +18,7 @@ Takes over the model seat at the bottom right of the DSH composer: instead of on
 - **Multiplier badges** — an `x0.28` token in the model name becomes a row-end badge, colored ≤0.3 green, ≤0.8 amber, >0.8 red.
 - **Separate reasoning effort** — its own button, popover and focus; hidden entirely when the current model has no reasoning support.
 - **Keyboard** — `⌘1–⌘9` quick pick, `⌘D` favorite, `Tab` fold, arrows plus Enter.
-- **Narrow rows stay orderly** — the model button has a fixed 150px width with an ellipsis and its full name on hover. It shrinks further when necessary to leave room for the microphone and send button; reasoning effort moves into the model menu and returns beside it when space permits.
+- **Aligned with the composer controls** — the model button fits its label, and the microphone and send buttons stay in place when you switch models. Long names have an ellipsis and show the full name on hover. In narrow rows, the model button is at most 150px wide and reasoning effort moves into the model menu. Menus follow their buttons and adjust their position and height to fit the visible window.
 
 ![Search](docs/images/search.png)
 
@@ -33,6 +33,12 @@ Narrow rows keep the model name and fold effort into the menu:
 Same layout in dark theme:
 
 ![Dark theme](docs/images/menu-dark.png)
+
+## v1.0.2
+
+- The model button lines up with the composer controls. In narrow layouts, reasoning effort moves into the menu. The microphone and send buttons stay put when you switch models.
+- The model and reasoning menus follow their buttons, adjusting position and height as the window resizes.
+- The keyboard highlight stays with the right model when favorites or the catalog change. Failed switches can be retried, and late responses leave a reopened menu alone.
 
 ## Install
 
@@ -62,7 +68,7 @@ dsh plugin --profile web add .
 
 After editing `src/`, run `npm run build` and restart DSH.
 
-Verified on DSH Desktop 0.12.1 / Harness 0.2.1-rc.2: visible and toggleable in the plugin list, one composed plugin row when enabled and none when disabled.
+v1.0.2 was verified on DSH Desktop 0.14.0 / Harness 0.2.2-rc.1. The bundle is visible in the plugin list and composes one plugin row when enabled and zero when disabled.
 
 ## Usage
 
@@ -94,7 +100,9 @@ Only its own registration is removed — sessions, model config and preferences 
 
 After editing `src/`, run `npm run build` then `npm test`; `node scripts/preview.mjs <dir>` renders the real components into static pages for layout work.
 
-Browser interaction tests use React from the local DSH profile and Playwright. They cover keyboard input, toolbar widths from 320–800px, model-name truncation, changing peer labels, and menu boundaries. Provide Playwright through `NODE_PATH` before running `npm test`; set `QMS_BROWSER_CHANNEL=chrome` to use system Chrome. Missing dependencies explicitly skip browser checks; these checks do not replace verification in DSH. Static previews do not run layout observers; verify responsive behavior in the browser and the real host.
+Browser interaction tests use React from the local DSH installation and Playwright. They cover keyboard input, toolbar widths from 320–800px, stable control positions across model changes, and menu boundaries in clipping and moving host layouts. Provide Playwright through `NODE_PATH` before running `npm test`, and set `QMS_BROWSER_CHANNEL=chrome` to use system Chrome. Set `DSH_PROFILE_MODULES` to point to the modules directory containing DSH's bundled React. Missing dependencies explicitly skip browser checks. Static previews do not run layout observers, so verify responsive behavior in the browser and the real host.
+
+On macOS, use DSH Desktop's Electron to run `ELECTRON_RUN_AS_NODE=1 "$DSH_DESKTOP_EXECUTABLE" test/host-registration.mjs`. Set `DSH_DESKTOP_EXECUTABLE` to the application's executable. This uses a temporary profile to check the plugin inventory and bundle composition.
 
 ## License
 

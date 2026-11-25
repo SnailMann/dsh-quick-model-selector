@@ -188,6 +188,11 @@ function collapsedOf(prefs, groupId, rows, state) {
   return true
 }
 
+function visibleRows(sections) {
+  return sections.filter(section => !section.collapsed)
+    .flatMap(section => section.rows.map(row => ({ ...row, sectionKind: section.kind })))
+}
+
 /**
  * Derive everything the panel renders from the directory snapshot.
  * @param state - model directory snapshot ({ current, groups, status, error }).
@@ -235,7 +240,7 @@ export function buildView(state, prefs, query) {
       sections: sections.length === 0
         ? []
         : [{ kind: 'results', id: '__results', name: '', rows: [], collapsed: false, count: hits.length }, ...sections],
-      rows: sections.flatMap(section => section.rows),
+      rows: visibleRows(sections),
       searching: true,
       total,
       hits: hits.length,
@@ -268,7 +273,7 @@ export function buildView(state, prefs, query) {
   }
   return {
     sections,
-    rows: sections.filter(section => !section.collapsed).flatMap(section => section.rows),
+    rows: visibleRows(sections),
     searching: false,
     total,
     hits: total,
